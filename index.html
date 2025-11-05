@@ -373,8 +373,7 @@ Rules:
       });
       if(!r.ok){ throw new Error(`Anthropic ${r.status}`); }
       const j = await r.json();
-      const parts = j.content?.filter?.(p=>p.type==='text').map(p=>p.text).join('
-') || '';
+      const parts = j.content?.filter?.(p => p.type === 'text').map(p => p.text).join(' ') || '';
       return parts;
     }
 
@@ -611,3 +610,4 @@ Rules:
   </script>
 </body>
 </html>
+
