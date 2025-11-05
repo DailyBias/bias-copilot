@@ -524,7 +524,7 @@ Rules:
       }
     } (${it.source})').join('');
         }
-        toast(`Loaded ${deduped.length} headlines.`);
+        toast('Loaded ${deduped.length} headlines.');
       } catch(e){
         console.error(e);
         toast('Could not fetch headlines (network/CORS). Try refresh.');
@@ -605,6 +605,7 @@ Rules:
   </script>
 </body>
 </html>
+
 
 
 
