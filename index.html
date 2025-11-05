@@ -513,10 +513,10 @@ Rules:
         const deduped = dedupe(all).sort((a,b)=> (new Date(b.publishedAt)) - (new Date(a.publishedAt)));
         renderNews(deduped);
         if(!els.news.value){
-          els.news.value = deduped.slice(0,25).map(it=>`- ${it.title} (${it.source})`).join('
+          els.news.value = deduped.slice(0,25).map(it=>'- ${it.title} (${it.source})').join('
 ');
         }
-        toast(`Loaded ${deduped.length} headlines.`);
+        toast('Loaded ${deduped.length} headlines.');
       } catch(e){
         console.error(e);
         renderNews([{ title: 'Could not fetch headlines (CORS). Try clicking Refresh or host the file via GitHub Pages/Netlify.', url:'#', source:'local', publishedAt: new Date().toUTCString() }]);
@@ -606,6 +606,7 @@ Rules:
   </script>
 </body>
 </html>
+
 
 
 
