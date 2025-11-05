@@ -324,26 +324,28 @@
       }catch{ document.getElementById('costToday').textContent = '$0.00'; }
     }
 
-    function buildPrompt(d){
-      return `You are a trading bias co-pilot for Nasdaq futures (or selected instrument).
+  function buildPrompt(d){
+  return (
+`You are a trading bias co-pilot for Nasdaq futures (or selected instrument).
 
 Task: Read the inputs and produce: (1) Bias (Bullish/Bearish/Neutral), (2) Confidence 0–100, (3) Rationale in 3–6 bullet points, (4) Actionable checklist (entries, invalidation, risk mgmt), (5) Risk flags (events, liquidity, structural risks).
 
 Context:
 - Instrument: ${d.symbol}
 - Session: ${d.session}
-- Manual Data: NQ=${d.nq||'NA'}, US10Y=${d.tnx||'NA'}, DXY=${d.dxy||'NA'}
+- Manual Data: NQ=${d.nq || 'NA'}, US10Y=${d.tnx || 'NA'}, DXY=${d.dxy || 'NA'}
 - Headlines/Notes:
-${d.news||'(none)'}
+${d.news || '(none)'}
 - Key Levels/Technicals:
-${d.levels||'(none)'}
+${d.levels || '(none)'}
 
 Rules:
 - If signals conflict, choose Neutral and explain.
 - Keep it concise, trader-ready.
 - Assume user trades 7–9 PM ET and uses gap/seasonal/prev-session levels.
-- Output JSON with keys: bias, confidence, rationale, checklist, risks.`;
-    }
+- Output JSON with keys: bias, confidence, rationale, checklist, risks.`
+  );
+}
 
     async function callOpenAI(model, key, prompt){
       try {
@@ -605,6 +607,7 @@ Rules:
   </script>
 </body>
 </html>
+
 
 
 
