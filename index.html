@@ -497,9 +497,8 @@ Rules:
           .slice(0, LIMIT);
         renderNews(deduped);
         // Auto-fill notes with exactly what we rendered
-        els.news.value = deduped.map(it=>`- ${it.title} (${it.source})`).join('
-');
-        toast(`Loaded ${deduped.length} headlines from last ${HOURS}h.`);
+        els.news.value = deduped.map(it=>'- ${it.title} (${it.source})').join('');
+        toast('Loaded ${deduped.length} headlines from last ${HOURS}h.');
       } catch(e){
         console.error(e);
         renderNews([{ title: 'Could not fetch headlines (CORS).', url:'#', source:'local', publishedAt: new Date().toUTCString() }]);
@@ -607,6 +606,7 @@ Rules:
   </script>
 </body>
 </html>
+
 
 
 
