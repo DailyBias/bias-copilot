@@ -522,8 +522,7 @@ Rules:
         renderNews([{ title: 'Could not fetch headlines (CORS). Try clicking Refresh or host the file via GitHub Pages/Netlify.', url:'#', source:'local', publishedAt: new Date().toUTCString() }]);
         toast('Could not fetch headlines (network/CORS).');
       }
-    } (${it.source})`).join('
-');
+    } (${it.source})').join('');
         }
         toast(`Loaded ${deduped.length} headlines.`);
       } catch(e){
@@ -606,6 +605,7 @@ Rules:
   </script>
 </body>
 </html>
+
 
 
 
