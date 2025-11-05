@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bias Co‑Pilot — AI Trading Snapshot</title>
+  <style>
+    :root { --bg:#0b0d10; --card:#12161c; --muted:#a8b3cf; --text:#e6edf7; --accent:#6ea8fe; --ok:#2ecc71; --warn:#f1c40f; --bad:#e74c3c; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; background: var(--bg); color: var(--text); }
+    header { padding: 24px; border-bottom: 1px solid #1d2430; display:flex; gap:16px; align-items:center; justify-content:space-between; }
+    h1 { font-size: 20px; margin: 0; letter-spacing: 0.2px; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 24px; display:grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; }
+    .card { background: var(--card); border: 1px solid #1d2430; border-radius: 14px; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+    .card h2 { margin: 0; padding: 14px 16px; font-size: 16px; border-bottom: 1px solid #1d2430; color: var(--muted); font-weight:600; }
+    .card .body { padding: 14px 16px; display:flex; flex-direction:column; gap:12px; }
+    label { font-size: 12px; color: var(--muted); display:block; margin-bottom:6px; }
+    input, select, textarea { width: 100%; background: #0f131a; color: var(--text); border: 1px solid #222a38; border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; }
+    textarea { min-height: 96px; resize: vertical; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background: linear-gradient(180deg, #2a6df6, #1d57d6); color: white; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight:600; }
+    .btn.secondary { background: #263145; }
+    .btn.ghost { background:#0f141c; border:1px dashed #2b3345; color:var(--muted); }
+    .btn:disabled { opacity: .65; cursor: not-allowed; }
+    .tag { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; border:1px solid #2b3345; background: #0f141c; color: var(--muted); }
+    .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .out { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#0d1117; border:1px solid #1d2430; padding:12px; border-radius:12px; min-height: 140px; }
+    .status { display:flex; align-items:center; gap:8px; font-size: 12px; color: var(--muted); }
+    .score { font-size: 32px; font-weight: 800; }
+    .score.good { color: var(--ok); }
+    .score.neutral { color: var(--warn); }
+    .score.bad { color: var(--bad); }
+    footer { padding: 24px; color: var(--muted); text-align:center; }
+    .pill { padding:4px 8px; border-radius:8px; border:1px dashed #2b3345; }
+    .muted { color: var(--muted); }
+    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+    .tiny { font-size: 11px; color:#8a95ad; }
+    ul.news { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+    ul.news li { padding:8px; border:1px solid #1d2430; border-radius:10px; background:#0f141a; }
+    ul.news a { color: var(--accent); text-decoration:none; }
+    .hr { height:1px; background:#1d2430; margin:10px 0; border:none; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { padding:6px 10px; border-radius:999px; border:1px solid #2b3345; background:#0f141c; font-size:12px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Bias Co‑Pilot <span class="tag">AI‑Enhanced Trading Snapshot</span></h1>
+    <div class="status" id="status">Idle</div>
+    <div class="tag" id="snapTag">Snapshots today: <span id="snapCount">0</span></div>
+    <div class="tag" id="costTag">Est. cost today: <span id="costToday">$0.00</span></div>
+  </header>
+  <main class="wrap">
+    <!-- LEFT: Inputs -->
+    <section class="card">
+      <h2>Inputs</h2>
+      <div class="body">
+        <div class="row">
+          <div>
+            <label>Provider</label>
+            <select id="provider">
+              <option value="openai">OpenAI (Responses/Chat)</option>
+              <option value="anthropic">Anthropic (Claude Messages)</option>
+            </select>
+          </div>
+          <div>
+            <label>Model</label>
+            <input id="model" placeholder="e.g., gpt-4o or claude-sonnet-4.5" />
+          </div>
+        </div>
+        <div>
+          <label>API Key (stored locally)</label>
+          <input id="apiKey" type="password" placeholder="sk-... or anthropic key" />
+          <div class="tiny">Your key is only used in your browser and saved to localStorage on this device.</div>
+        </div>
+
+        <div class="card" style="background:#0c1118; border-color:#223;">
+          <h2>News (auto‑fetched)</h2>
+          <div class="body">
+            <div class="tiny">Headlines are fetched automatically from trusted RSS sources (Reuters Markets, Reuters Business, CNBC Top, Investing.com Indices). No keys needed.</div>
+            <div class="row">
+              <button class="btn" id="btnNewsRefresh">Refresh Headlines</button>
+              <button class="btn secondary" id="btnNewsAndBias">Refresh + Generate Bias</button>
+            </div>
+            <ul class="news" id="newsList"></ul>
+          </div>
+          </div>
+        </div>
+
+        </div>
+    </section>
+
+    <!-- RIGHT: Output -->
+    <section class="card">
+      <h2>Output</h2>
+      <div class="body">
+        <div class="row" style="align-items:center">
+          <div>
+            <div class="muted">AI Bias</div>
+            <div id="bias" class="score neutral">—</div>
+          </div>
+          <div>
+            <div class="muted">Confidence</div>
+            <div id="conf" class="score neutral">—</div>
+          </div>
+        </div>
+        <div>
+          <label>Rationale</label>
+          <div id="rationale" class="out"></div>
+        </div>
+        <div>
+          <label>Actionable Checklist</label>
+          <div id="checklist" class="out"></div>
+        </div>
+        <div>
+          <label>Risk Flags</label>
+          <div id="risks" class="out"></div>
+        </div>
+        <div class="tiny">Disclaimer: Educational context only. Not financial advice.</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Built for Ed by <span class="pill">BurtonCraft AI Systems</span>. Runs entirely in your browser. Bring‑your‑own API key.
+  </footer>
+
+  <script>
+    const els = {
+      provider: document.getElementById('provider'),
+      model: document.getElementById('model'),
+      apiKey: document.getElementById('apiKey'),
+      symbol: document.getElementById('symbol'),
+      session: document.getElementById('session'),
+      nq: document.getElementById('nq'),
+      tnx: document.getElementById('tnx'),
+      dxy: document.getElementById('dxy'),
+      news: document.getElementById('news'),
+      levels: document.getElementById('levels'),
+      run: document.getElementById('run'),
+      save: document.getElementById('save'),
+      status: document.getElementById('status'),
+      bias: document.getElementById('bias'),
+      conf: document.getElementById('conf'),
+      rationale: document.getElementById('rationale'),
+      checklist: document.getElementById('checklist'),
+      risks: document.getElementById('risks'),
+      // news
+      newsProvider: document.getElementById('newsProvider'),
+      newsKey: document.getElementById('newsKey'),
+      newsKeyLbl: document.getElementById('newsKeyLbl'),
+      newsQuery: document.getElementById('newsQuery'),
+      newsDays: document.getElementById('newsDays'),
+      rssUrl: document.getElementById('rssUrl'),
+      corsProxy: document.getElementById('corsProxy'),
+      fetchNews: document.getElementById('fetchNews'),
+      pushToNotes: document.getElementById('pushToNotes'),
+      newsList: document.getElementById('newsList'),
+      rssPicks: document.getElementById('rssPicks'),
+    };
+
+    // Toggle RSS fields
+    els.newsProvider.addEventListener('change', () => {
+      const rss = els.newsProvider.value === 'rss';
+      document.getElementById('rssRow').style.display = rss ? 'grid' : 'none';
+      els.newsKeyLbl.textContent = rss ? 'Unused for RSS' : 'NewsAPI Key';
+    });
+
+    // Load/save local defaults
+    (function init(){
+      const saved = JSON.parse(localStorage.getItem('biascopilot')||'{}');
+      for(const k in saved){ if(els[k] && typeof saved[k] === 'string') els[k].value = saved[k]; }
+      if(!els.model.value){
+        els.model.value = els.provider.value === 'openai' ? 'gpt-4o' : 'claude-sonnet-4.5';
+      }
+      // Snapshot chip refs
+      snapEls.tag = document.getElementById('snapTag');
+      snapEls.count = document.getElementById('snapCount');
+      loadSnapCount();
+      // Cost chip refs
+      document.getElementById('costTag');
+      document.getElementById('costToday');
+      updateCostToday();
+    })();
+
+    els.save.addEventListener('click', () => {
+      const data = collect();
+      localStorage.setItem('biascopilot', JSON.stringify(data));
+      toast('Settings saved locally.');
+    });
+
+    function collect(){
+      const o = {
+        provider: els.provider.value,
+        model: els.model.value,
+        apiKey: els.apiKey.value,
+        symbol: els.symbol.value,
+        session: els.session.value,
+        nq: els.nq.value,
+        tnx: els.tnx.value,
+        dxy: els.dxy.value,
+        news: els.news.value,
+        levels: els.levels.value,
+        // news cfg
+        newsProvider: els.newsProvider.value,
+        newsKey: els.newsKey.value,
+        newsQuery: els.newsQuery.value,
+        newsDays: els.newsDays.value,
+        rssUrl: els.rssUrl.value,
+        corsProxy: els.corsProxy.value,
+      };
+      return o;
+    }
+
+    function toast(msg){ els.status.textContent = msg; }
+
+    // ====== SNAPSHOT COUNTER ======
+    const snapEls = { tag: null, count: null };
+    function todayKey(){ const d = new Date(); return d.toISOString().slice(0,10); }
+    function loadSnapCount(){
+      try{
+        const data = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
+        const key = todayKey();
+        const n = (data[key]||0);
+        snapEls.count.textContent = String(n);
+      }catch{ snapEls.count.textContent = '0'; }
+    }
+    function incSnap(){
+      const key = todayKey();
+      const data = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
+      data[key] = (data[key]||0) + 1;
+      localStorage.setItem('biascopilot_snaps', JSON.stringify(data));
+      snapEls.count.textContent = String(data[key]);
+    }
+
+    // ====== COST SETTINGS (editable)
+    const costEls = { tag: null, today: null };
+    function loadCostCfg(){
+      const saved = JSON.parse(localStorage.getItem('biascopilot_cost')||'{}');
+      return {
+        in_cpm: Number(saved.in_cpm ?? 2.5),   // $ per 1M input tokens
+        out_cpm: Number(saved.out_cpm ?? 10),  // $ per 1M output tokens
+        in_tokens: Number(saved.in_tokens ?? 300),
+        out_tokens: Number(saved.out_tokens ?? 300)
+      };
+    }
+    function saveCostCfg(cfg){ localStorage.setItem('biascopilot_cost', JSON.stringify(cfg)); }
+    function perSnapshotCost(cfg){
+      const cin = (cfg.in_tokens/1e6)*cfg.in_cpm;
+      const cout = (cfg.out_tokens/1e6)*cfg.out_cpm;
+      return cin + cout;
+    }
+    function formatUSD(x){ return `$${x.toFixed(2)}`; }
+    function updateCostToday(){
+      try{
+        const cfg = loadCostCfg();
+        const data = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
+        const n = (data[todayKey()]||0);
+        const est = n * perSnapshotCost(cfg);
+        document.getElementById('costToday').textContent = formatUSD(est);
+      }catch{ document.getElementById('costToday').textContent = '$0.00'; }
+    }
+
+    function buildPrompt(d){
+      return `You are a trading bias co-pilot for Nasdaq futures (or selected instrument).
+
+Task: Read the inputs and produce: (1) Bias (Bullish/Bearish/Neutral), (2) Confidence 0–100, (3) Rationale in 3–6 bullet points, (4) Actionable checklist (entries, invalidation, risk mgmt), (5) Risk flags (events, liquidity, structural risks).
+
+Context:
+- Instrument: ${d.symbol}
+- Session: ${d.session}
+- Manual Data: NQ=${d.nq||'NA'}, US10Y=${d.tnx||'NA'}, DXY=${d.dxy||'NA'}
+- Headlines/Notes:
+${d.news||'(none)'}
+- Key Levels/Technicals:
+${d.levels||'(none)'}
+
+Rules:
+- If signals conflict, choose Neutral and explain.
+- Keep it concise, trader-ready.
+- Assume user trades 7–9 PM ET and uses gap/seasonal/prev-session levels.
+- Output JSON with keys: bias, confidence, rationale, checklist, risks.`;
+    }
+
+    async function callOpenAI(model, key, prompt){
+      try {
+        const r = await fetch('https://api.openai.com/v1/responses', {
+          method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${key}` },
+          body: JSON.stringify({ model, input:[{role:'user', content: prompt}], temperature: 0.2, max_output_tokens: 700, response_format:{ type:'json_object' } })
+        });
+        if(!r.ok){ throw new Error(`OpenAI ${r.status}`); }
+        const j = await r.json();
+        const text = j.output_text || (j.output?.[0]?.content?.[0]?.text) || '';
+        return text;
+      } catch(e){
+        const r = await fetch('https://api.openai.com/v1/chat/completions', {
+          method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${key}` },
+          body: JSON.stringify({ model, messages:[{role:'user', content: prompt}], temperature:0.2, response_format:{ type:'json_object' } })
+        });
+        if(!r.ok){ throw new Error(`OpenAI Chat ${r.status}`); }
+        const j = await r.json();
+        return (j.choices?.[0]?.message?.content)||'';
+      }
+    }
+
+    async function callAnthropic(model, key, prompt){
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST', headers:{ 'Content-Type':'application/json','x-api-key': key,'anthropic-version':'2023-06-01' },
+        body: JSON.stringify({ model, max_tokens: 800, temperature: 0.2, messages:[{role:'user', content: prompt}] })
+      });
+      if(!r.ok){ throw new Error(`Anthropic ${r.status}`); }
+      const j = await r.json();
+      const parts = j.content?.filter?.(p=>p.type==='text').map(p=>p.text).join('
+') || '';
+      return parts;
+    }
+
+    function renderFromJSON(json){
+      try{
+        const data = JSON.parse(json);
+        const bias = String(data.bias||'Neutral');
+        const conf = Number(data.confidence||0);
+        els.bias.textContent = bias;
+        els.conf.textContent = isFinite(conf) ? `${conf}%` : '—';
+        els.bias.className = 'score ' + (bias.toLowerCase().includes('bull') ? 'good' : bias.toLowerCase().includes('bear') ? 'bad' : 'neutral');
+        els.conf.className = 'score ' + (conf>=67 ? 'good' : conf>=34 ? 'neutral' : 'bad');
+        els.rationale.textContent = Array.isArray(data.rationale)? data.rationale.map(x=>`• ${x}`).join('
+') : (data.rationale||'');
+        els.checklist.textContent = Array.isArray(data.checklist)? data.checklist.map(x=>`☐ ${x}`).join('
+') : (data.checklist||'');
+        els.risks.textContent = Array.isArray(data.risks)? data.risks.map(x=>`! ${x}`).join('
+') : (data.risks||'');
+      } catch(e){
+        els.rationale.textContent = json; // fallback raw
+        els.checklist.textContent = '—';
+        els.risks.textContent = '—';
+      }
+    }
+
+    // ====== NEWS (AUTO) ======
+    const RSS_FEEDS = [
+      'https://feeds.reuters.com/reuters/marketsNews',
+      'https://feeds.reuters.com/reuters/businessNews',
+      'https://www.cnbc.com/id/100003114/device/rss/rss.html'
+    ];
+
+    async function fetchRSS(url){
+      // Try multiple CORS proxies in order; some feeds block some proxies
+      const targets = [
+        (u)=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+        (u)=>`https://cors.isomorphic-git.org/${u}`,
+        (u)=>`https://thingproxy.freeboard.io/fetch/${u}`
+      ];
+      let lastErr = null;
+      for(const wrap of targets){
+        const proxied = wrap(url);
+        try{
+          const r = await fetch(proxied, { headers: { 'User-Agent': 'Mozilla/5.0' }});
+          if(!r.ok) throw new Error(`RSS fetch ${r.status}`);
+          const xml = await r.text();
+          const doc = new DOMParser().parseFromString(xml, 'application/xml');
+          const items = [...doc.querySelectorAll('item')].map(x=>({
+            title: x.querySelector('title')?.textContent?.trim()||'',
+            url: x.querySelector('link')?.textContent||'',
+            source: (new URL(url)).hostname,
+            publishedAt: x.querySelector('pubDate')?.textContent||''
+          }));
+          if(items.length) return items; // success
+        }catch(e){ lastErr = e; }
+      }
+      throw lastErr || new Error('All proxies failed');
+    }`;
+      const r = await fetch(proxied);
+      if(!r.ok) throw new Error('RSS fetch '+r.status);
+      const xml = await r.text();
+      const doc = new DOMParser().parseFromString(xml, 'application/xml');
+      const items = [...doc.querySelectorAll('item')].map(x=>({
+        title: x.querySelector('title')?.textContent?.trim()||'',
+        url: x.querySelector('link')?.textContent||'',
+        source: (new URL(url)).hostname,
+        publishedAt: x.querySelector('pubDate')?.textContent||''
+      }));
+      return items;
+    }
+
+    function dedupe(items){
+      const seen = new Set();
+      return items.filter(it=>{
+        const key = it.title.toLowerCase();
+        if(seen.has(key)) return false; seen.add(key); return true;
+      });
+    }
+
+    function renderNews(items){
+      els.newsList.innerHTML = '';
+      items.slice(0,25).forEach(it=>{
+        const li = document.createElement('li');
+        const a = document.createElement('a'); a.href = it.url; a.target = '_blank'; a.rel='noopener'; a.textContent = it.title;
+        const meta = document.createElement('div'); meta.className='tiny'; meta.textContent = `${it.source} • ${it.publishedAt}`;
+        li.appendChild(a); li.appendChild(meta);
+        els.newsList.appendChild(li);
+      });
+      return items;
+    }
+
+    async function autoFetchHeadlines(){
+      try {
+        toast('Fetching headlines…');
+        const batches = await Promise.allSettled(RSS_FEEDS.map(fetchRSS));
+        const all = batches.flatMap(b => b.status==='fulfilled' ? b.value : []);
+        if(!all.length){
+          // Friendly fallback so the app still works first-run
+          const fallback = [
+            { title: 'Fallback: Unable to reach RSS (CORS). Try Refresh or open from a simple HTTP host (GitHub Pages).', url:'#', source:'local', publishedAt: new Date().toUTCString() }
+          ];
+          renderNews(fallback);
+          toast('RSS blocked by network/CORS. See note.');
+          return;
+        }
+        const deduped = dedupe(all).sort((a,b)=> (new Date(b.publishedAt)) - (new Date(a.publishedAt)));
+        renderNews(deduped);
+        if(!els.news.value){
+          els.news.value = deduped.slice(0,25).map(it=>`- ${it.title} (${it.source})`).join('
+');
+        }
+        toast(`Loaded ${deduped.length} headlines.`);
+      } catch(e){
+        console.error(e);
+        renderNews([{ title: 'Could not fetch headlines (CORS). Try clicking Refresh or host the file via GitHub Pages/Netlify.', url:'#', source:'local', publishedAt: new Date().toUTCString() }]);
+        toast('Could not fetch headlines (network/CORS).');
+      }
+    } (${it.source})`).join('
+');
+        }
+        toast(`Loaded ${deduped.length} headlines.`);
+      } catch(e){
+        console.error(e);
+        toast('Could not fetch headlines (network/CORS). Try refresh.');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', autoFetchHeadlines);
+    // Manual controls
+    const btnNewsRefresh = document.getElementById('btnNewsRefresh');
+    const btnNewsAndBias = document.getElementById('btnNewsAndBias');
+    if(btnNewsRefresh){ btnNewsRefresh.addEventListener('click', autoFetchHeadlines); }
+    if(btnNewsAndBias){ btnNewsAndBias.addEventListener('click', async () => { await autoFetchHeadlines(); els.run.click(); }); } return; }
+      const bullets = itemsToBullets(lastFetched);
+      els.news.value = (els.news.value? els.news.value+"
+
+":'') + bullets;
+      toast('Headlines appended to Notes.');
+    });
+
+    // Quick-pick RSS chips
+    els.rssPicks.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if(!chip) return;
+      els.newsProvider.value = 'rss';
+      document.getElementById('rssRow').style.display = 'grid';
+      els.newsKeyLbl.textContent = 'Unused for RSS';
+      els.rssUrl.value = chip.dataset.url || '';
+      toast('RSS preset loaded. Click Fetch Headlines.');
+    });
+
+    // ====== RUN MODEL ======
+    els.run.addEventListener('click', async () => {
+      const d = collect();
+      if(!d.apiKey){ return toast('Add your API key first.'); }
+      toast('Calling model…');
+      els.run.disabled = true;
+      try {
+        const prompt = buildPrompt(d);
+        let out = '';
+        if(d.provider === 'openai') out = await callOpenAI(d.model, d.apiKey, prompt);
+        else out = await callAnthropic(d.model, d.apiKey, prompt);
+        renderFromJSON(out);
+        incSnap();
+        updateCostToday();
+        toast('Done');
+      } catch (err){
+        console.error(err);
+        toast('Error: '+err.message+'. Check model name, key, or CORS.');
+      } finally {
+        els.run.disabled = false;
+      }
+    });
+
+    // Auto-run snapshot if API key already saved
+    if(localStorage.getItem('biascopilot')){
+      try{
+        const saved = JSON.parse(localStorage.getItem('biascopilot'));
+        if(saved?.apiKey){ setTimeout(()=>els.run.click(), 500); }
+      } catch {}
+    }
+      if(!d.apiKey){ return toast('Add your API key first.'); }
+      toast('Calling model…');
+      els.run.disabled = true;
+      try {
+        const prompt = buildPrompt(d);
+        let out = '';
+        if(d.provider === 'openai') out = await callOpenAI(d.model, d.apiKey, prompt);
+        else out = await callAnthropic(d.model, d.apiKey, prompt);
+        renderFromJSON(out);
+        toast('Done');
+      } catch (err){
+        console.error(err);
+        toast('Error: '+err.message+'. Check model name, key, or CORS.');
+      } finally {
+        els.run.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
