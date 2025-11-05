@@ -233,7 +233,16 @@
       for(const p of prefs){ const o=[...els.model.options].find(o=>o.value===p); if(o){ els.model.value=p; return; } }
       if(els.model.options.length){ els.model.selectedIndex = 0; }
     }
-    async function detectOpenAIModels(key){ const r = await fetch('https://api.openai.com/v1/models', { headers: { 'Authorization': `Bearer ${key}` }}); if(!r.ok) throw new Error('OpenAI list models failed'); const j = await r.json(); const names = (j.data||[]).map(x=>x.id).filter(n=>/^gpt-/.test(n)); return [...new Set(names)].sort(); }
+    async function detectOpenAIModels(key){
+  const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/models', {
+    headers: { 'Authorization': `Bearer ${key}` } // not used by the Worker, but fine
+  });
+  if (!r.ok) throw new Error('OpenAI list models failed');
+  const j = await r.json();
+  const names = (j.data || []).map(x => x.id).filter(n => /^gpt-/.test(n));
+  return [...new Set(names)].sort();
+}
+
     async function detectAnthropicModels(){ return ['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus']; }
     async function loadModels(){ const key=els.apiKey.value; toast('Loading models…'); try{ const list = els.provider.value==='openai' ? await detectOpenAIModels(key) : await detectAnthropicModels(); renderModelOptions(list); toast('Models loaded'); }catch(e){ console.warn(e); loadDefaultModels(); toast('Using default model list'); } }
     els.btnLoadModels.addEventListener('click', loadModels);
@@ -321,8 +330,9 @@ Rules:
         if(!all.length){ renderNews([{ title:'Could not fetch headlines (CORS).', url:'#', source:'local', publishedAt:new Date().toUTCString() }]); toast('RSS blocked by network/CORS.'); return; }
         const deduped = dedupe(all).map(it=>({ ...it, _dt: toDateSafe(it.publishedAt) })).filter(it=> isWithinHours(it._dt, HOURS)).sort((a,b)=> b._dt - a._dt).slice(0, LIMIT);
         renderNews(deduped);
-        els.news.value = deduped.map(it=>'- ${it.title} (${it.source})').join('');
-        toast('Loaded ${deduped.length} headlines from last ${HOURS}h.');
+        els.news.value = deduped.map(it => `- ${it.title} (${it.source})`).join('\n');
+        toast(`Loaded ${deduped.length} headlines from last ${HOURS}h.`);
+
       }catch(e){ console.error(e); renderNews([{ title:'Could not fetch headlines (CORS).', url:'#', source:'local', publishedAt:new Date().toUTCString() }]); toast('Could not fetch headlines (network/CORS).'); }
     }
 
@@ -398,6 +408,7 @@ Rules:
 </html>
 
   
+
 
 
 
