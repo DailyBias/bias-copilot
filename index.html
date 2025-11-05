@@ -386,12 +386,9 @@ Rules:
         els.conf.textContent = isFinite(conf) ? `${conf}%` : '—';
         els.bias.className = 'score ' + (bias.toLowerCase().includes('bull') ? 'good' : bias.toLowerCase().includes('bear') ? 'bad' : 'neutral');
         els.conf.className = 'score ' + (conf>=67 ? 'good' : conf>=34 ? 'neutral' : 'bad');
-        els.rationale.textContent = Array.isArray(data.rationale)? data.rationale.map(x=>`• ${x}`).join('
-') : (data.rationale||'');
-        els.checklist.textContent = Array.isArray(data.checklist)? data.checklist.map(x=>`☐ ${x}`).join('
-') : (data.checklist||'');
-        els.risks.textContent = Array.isArray(data.risks)? data.risks.map(x=>`! ${x}`).join('
-') : (data.risks||'');
+        els.rationale.textContent = Array.isArray(data.rationale)? data.rationale.map(x=>`• ${x}`).join('') : (data.rationale||'');
+        els.checklist.textContent = Array.isArray(data.checklist)? data.checklist.map(x=>`☐ ${x}`).join('') : (data.checklist||'');
+        els.risks.textContent = Array.isArray(data.risks)? data.risks.map(x=>`! ${x}`).join('') : (data.risks||'');
       } catch(e){
         els.rationale.textContent = json; // fallback raw
         els.checklist.textContent = '—';
@@ -610,4 +607,5 @@ Rules:
   </script>
 </body>
 </html>
+
 
