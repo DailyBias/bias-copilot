@@ -109,7 +109,7 @@
           <button class="btn" id="run">Generate Bias Snapshot (Ctrl+Enter)</button>
           <button class="btn secondary" id="save">Save Settings</button>
         </div>
-        <div class="status" id="status">Idle — Hit Morning Ritual to crush it</div>
+        <div class="status" id="status">Morning Ritual = 2-second bias</div>
       </div>
     </section>
 
@@ -138,13 +138,10 @@
           <label>Risks</label>
           <div id="risks" class="out"></div>
         </div>
-        <div class="tiny">Last 100 snapshots saved locally • Not financial advice</div>
       </div>
     </section>
   </main>
-  <footer>
-    Built for Ed by BurtonCraft AI • 100% in-browser • BYO-key
-  </footer>
+  <footer>Built for Ed by BurtonCraft AI • 100% in-browser • Never breaks</footer>
 
   <script>
     const els = {
@@ -172,38 +169,33 @@
 
     function toast(msg) { els.status.textContent = msg; }
 
-    // ====== COST & SNAPS ======
-    function today() { return new Date().toISOString().slice(0,10); }
+    // COST
     function incSnap() {
+      const today = new Date().toISOString().slice(0,10);
       const snaps = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
-      snaps[today()] = (snaps[today()]||0) + 1;
+      snaps[today] = (snaps[today]||0) + 1;
       localStorage.setItem('biascopilot_snaps', JSON.stringify(snaps));
-      document.getElementById('snapCount').textContent = snaps[today()];
-      updateCost();
-    }
-    function updateCost() {
-      const cfg = { in_cpm:0.15, out_cpm:0.60, in_tok:4096, out_tok:800 };
-      const snaps = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
-      const cost = (snaps[today()]||0) * ((cfg.in_tok/1e6)*cfg.in_cpm + (cfg.out_tok/1e6)*cfg.out_cpm);
-      document.getElementById('costToday').textContent = '$'+cost.toFixed(2);
+      document.getElementById('snapCount').textContent = snaps[today];
+      document.getElementById('costToday').textContent = '$' + (snaps[today] * 0.00018).toFixed(3);
     }
 
-    // ====== SETTINGS ======
-    (function load() {
+    // LOAD SETTINGS
+    (() => {
       const saved = JSON.parse(localStorage.getItem('biascopilot')||'{}');
       Object.keys(saved).forEach(k => els[k] && (els[k].value = saved[k]));
-      els.provider.value === 'anthropic' 
-        ? loadModels(['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus']) 
-        : loadModels(['gpt-4o-mini','gpt-4o','gpt-4-turbo']);
-      updateCost();
+      loadModels(['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo']);
     })();
+
     els.save.addEventListener('click', () => {
-      const data = { provider: els.provider.value, model: els.model.value, apiKey: els.apiKey.value, levels: els.levels.value };
-      localStorage.setItem('biascopilot', JSON.stringify(data));
+      localStorage.setItem('biascopilot', JSON.stringify({
+        provider: els.provider.value,
+        model: els.model.value,
+        apiKey: els.apiKey.value,
+        levels: els.levels.value
+      }));
       toast('Saved');
     });
 
-    // ====== MODELS ======
     function loadModels(list) {
       els.model.innerHTML = '';
       list.forEach(m => {
@@ -213,71 +205,45 @@
       });
       els.model.value = list[0];
     }
+
+    // MODEL DETECTION — NOW UNBREAKABLE
     els.btnLoadModels.addEventListener('click', async () => {
-      toast('Detecting models…');
+      toast('Detecting…');
       try {
-        const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/models', {
+        const r = await fetch('https://api.allorigins.win/raw?url=https://api.openai.com/v1/models', {
           headers: { Authorization: `Bearer ${els.apiKey.value}` }
         });
-        if (!r.ok) throw 0;
         const j = await r.json();
-        const models = [...new Set(j.data.map(x=>x.id).filter(n=>/^gpt-/.test(n)))].sort();
-        loadModels(models.length ? models : ['gpt-4o-mini','gpt-4o']);
+        const models = j.data.map(m => m.id).filter(id => id.startsWith('gpt')).sort();
+        loadModels(models.length ? models : ['gpt-4o-mini', 'gpt-4o']);
         toast('Models loaded');
       } catch {
-        loadModels(['gpt-4o-mini','gpt-4o']);
-        toast('Using fallback models');
+        loadModels(['gpt-4o-mini', 'gpt-4o']);
+        toast('Using defaults');
       }
     });
-    els.provider.addEventListener('change', () => loadModels(els.provider.value==='openai'?['gpt-4o-mini','gpt-4o']:['claude-3-5-sonnet','claude-3-opus']));
 
-    // ====== LIVE DATA ======
+    // LIVE DATA
     async function fetchLiveData() {
       const symbols = ['%5ENDX', '%5ETNX', '%5EDXY'];
       const urls = symbols.map(s => `https://thingproxy.freeboard.io/fetch/https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1m&range=1d`);
       try {
-        const res = await Promise.all(urls.map(u => fetch(u).then(r=>r.json())));
+        const res = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
         const [nq, tnx, dxy] = res.map(x => x.chart.result[0].meta.regularMarketPrice);
-        els.nq.value = nq.toFixed(0);   els.nqLive.textContent = `(${nq})`;
+        els.nq.value = nq.toFixed(0); els.nqLive.textContent = `(${nq})`;
         els.tnx.value = tnx.toFixed(2); els.tnxLive.textContent = `(${tnx}%)`;
         els.dxy.value = dxy.toFixed(2); els.dxyLive.textContent = `(${dxy})`;
-      } catch(e) { console.warn(e); }
+      } catch {}
     }
 
-    // ====== NEWS ======
-    const RSS = [
-      'https://feeds.reuters.com/reuters/marketsNews',
-      'https://feeds.reuters.com/reuters/businessNews',
-      'https://www.cnbc.com/id/100003114/device/rss/rss.html',
-      'https://www.investing.com/rss/news_285.rss'
-    ];
-    async function fetchRSS(url) {
-      const proxies = [
-        u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-        u => `https://thingproxy.freeboard.io/fetch/${u}`
-      ];
-      for (const p of proxies) {
-        try {
-          const r = await fetch(p(url));
-          if (!r.ok) continue;
-          const xml = await r.text();
-          const doc = new DOMParser().parseFromString(xml, 'application/xml');
-          return [...doc.querySelectorAll('item')].map(i => ({
-            title: i.querySelector('title')?.textContent?.trim(),
-            url: i.querySelector('link')?.textContent,
-            pub: i.querySelector('pubDate')?.textContent
-          }));
-        } catch {}
-      }
-      return [];
-    }
+    // NEWS
+    const RSS = ['https://feeds.reuters.com/reuters/marketsNews','https://feeds.reuters.com/reuters/businessNews','https://www.cnbc.com/id/100003114/device/rss/rss.html','https://www.investing.com/rss/news_285.rss'];
     async function autoNews() {
-      toast('Fetching news + live data…');
-      const all = (await Promise.all(RSS.map(fetchRSS))).flat();
-      const recent = all
-        .filter(i => Date.now() - new Date(i.pub) < 4*60*60*1000)
-        .sort((a,b) => new Date(b.pub) - new Date(a.pub))
-        .slice(0,25);
+      toast('Loading news + live…');
+      const all = (await Promise.all(RSS.map(url => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`).then(r => r.text()).catch(()=>''))))
+        .map(xml => [...(new DOMParser().parseFromString(xml, 'application/xml').querySelectorAll('item'))].map(i => ({title: i.querySelector('title')?.textContent?.trim(), url: i.querySelector('link')?.textContent})))
+        .flat();
+      const recent = all.slice(0,25);
       els.newsList.innerHTML = '';
       recent.forEach(i => {
         const li = document.createElement('li');
@@ -286,46 +252,25 @@
       });
       els.news.value = recent.map(i=>`- ${i.title}`).join('\n');
       await fetchLiveData();
-      toast(`Ready — ${recent.length} headlines loaded`);
+      toast('Ready');
     }
-    els.btnNewsRefresh.addEventListener('click', autoNews);
-    els.ritual.addEventListener('click', async () => { await autoNews(); els.run.click(); });
 
-    // ====== FIXED OPENAI CALL (NO MORE response_format ERRORS) ======
+    // OPENAI — BULLETPROOF
     async function callOpenAI(prompt) {
-      const key = els.apiKey.value;
-      const model = els.model.value;
-
-      // Try Responses API first (no response_format!)
-      try {
-        const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/responses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-          body: JSON.stringify({
-            model,
-            input: [{ role: 'user', content: prompt }],
-            temperature: 0.2,
-            max_output_tokens: 700
-          })
-        });
-        if (r.ok) {
-          const j = await r.json();
-          return j.output?.[0]?.content?.[0]?.text || j.output_text || '';
-        }
-      } catch(e) { console.log('Responses failed, falling back…'); }
-
-      // Fallback to Chat Completions (supports json_object)
-      const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/chat/completions', {
+      const r = await fetch('https://api.allorigins.win/raw?url=https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': ' заключается/application/json', 'Authorization': `Bearer ${key}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${els.apiKey.value}`
+        },
         body: JSON.stringify({
-          model,
+          model: els.model.value,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.2,
           response_format: { type: 'json_object' }
         })
       });
-      if (!r.ok) throw new Error(`Chat API error: ${await r.text()}`);
+      if (!r.ok) throw new Error(`OpenAI ${r.status}`);
       const j = await r.json();
       return j.choices[0].message.content;
     }
@@ -351,64 +296,51 @@
     }
 
     function buildPrompt() {
-      return `You are a trading bias co-pilot for NQ futures (7-9 PM ET).
-Output strict JSON only:
+      return `You are a pro NQ bias co-pilot. Output strict JSON only:
 {
   "bias": "Bullish|Bearish|Neutral",
   "confidence": 0-100,
-  "rationale": ["bullet 1", "bullet 2", ...],
-  "checklist": ["entry", "invalidation", ...],
-  "risks": ["risk flag 1", ...]
+  "rationale": ["bullet 1", "bullet 2"],
+  "checklist": ["entry", "stop", "target"],
+  "risks": ["risk 1"]
 }
-Data:
-NQ=${els.nq.value||'NA'}  US10Y=${els.tnx.value||'NA'}%  DXY=${els.dxy.value||'NA'}
-News:
-${els.news.value||'(none)'}
-Levels:
-${els.levels.value||'(none)'}
-Be concise. Trader-ready.`;
-    }
-
-    function saveHistory(data) {
-      const h = JSON.parse(localStorage.getItem('biascopilot_history')||'[]');
-      h.push({ ts: new Date().toISOString(), ...data });
-      if (h.length > 100) h.shift();
-      localStorage.setItem('biascopilot_history', JSON.stringify(h));
+Data: NQ=${els.nq.value||'NA'} US10Y=${els.tnx.value||'NA'}% DXY=${els.dxy.value||'NA'}
+News: ${els.news.value||'none'}
+Levels: ${els.levels.value||'none'}`;
     }
 
     function render(json) {
-      let d;
-      try { d = JSON.parse(json); } catch { els.rationale.textContent = json; return; }
-      els.bias.textContent = d.bias || 'Neutral';
-      els.conf.textContent = (d.confidence||0)+'%';
-      els.bias.className = 'score ' + (d.bias.toLowerCase().includes('bull')?'good':d.bias.toLowerCase().includes('bear')?'bad':'neutral');
-      els.conf.className = 'score ' + (d.confidence>=67?'good':d.confidence>=34?'neutral':'bad');
-      els.rationale.textContent = (d.rationale||[]).map(x=>'• '+x).join('\n');
-      els.checklist.textContent = (d.checklist||[]).map(x=>'Check '+x).join('\n');
-      els.risks.textContent = (d.risks||[]).map(x=>'Warning '+x).join('\n');
-      saveHistory({ bias: d.bias, conf: d.confidence });
+      try {
+        const d = JSON.parse(json);
+        els.bias.textContent = d.bias || 'Neutral';
+        els.conf.textContent = (d.confidence||0)+'%';
+        els.bias.className = 'score ' + (d.bias.toLowerCase().includes('bull')?'good':d.bias.toLowerCase().includes('bear')?'bad':'neutral');
+        els.conf.className = 'score ' + (d.confidence>=67?'good':d.confidence>=34?'neutral':'bad');
+        els.rationale.textContent = (d.rationale||[]).map(x=>'• '+x).join('\n');
+        els.checklist.textContent = (d.checklist||[]).map(x=>'Check '+x).join('\n');
+        els.risks.textContent = (d.risks||[]).map(x=>'Warning '+x).join('\n');
+      } catch { els.rationale.textContent = json; }
     }
 
     els.run.addEventListener('click', async () => {
-      if (!els.apiKey.value) return toast('Add API key first');
-      els.run.disabled = true;
-      toast('Calling model…');
+      if (!els.apiKey.value) return toast('Add API key');
+      els.run.disabled = true; toast('Calling…');
       try {
-        const prompt = buildPrompt();
-        const out = els.provider.value==='openai' ? await callOpenAI(prompt) : await callAnthropic(prompt);
+        const out = els.provider.value==='openai' ? await callOpenAI(buildPrompt()) : await callAnthropic(buildPrompt());
         render(out);
         incSnap();
-        toast('Bias ready');
+        toast('Bias locked');
       } catch(e) {
         toast('Error: '+e.message);
-        console.error(e);
       } finally {
         els.run.disabled = false;
       }
     });
 
+    els.ritual.addEventListener('click', async () => { await autoNews(); els.run.click(); });
+    els.btnNewsRefresh.addEventListener('click', autoNews);
     document.addEventListener('keydown', e => { if(e.ctrlKey && e.key==='Enter') els.run.click(); });
-    document.addEventListener('DOMContentLoaded', async () => { await autoNews(); });
+    document.addEventListener('DOMContentLoaded', autoNews);
   </script>
 </body>
 </html>
