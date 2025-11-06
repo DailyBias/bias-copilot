@@ -19,8 +19,8 @@
     textarea { min-height: 96px; resize: vertical; }
     .row { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background: linear-gradient(180deg, #2a6df6, #1d57d6); color: white; border: none; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-weight:600; }
+    .btn.ritual { background: linear-gradient(180deg,#9b59b6,#8e44ad); }
     .btn.secondary { background: #263145; }
-    .btn.ghost { background:#0f141c; border:1px dashed #2b3345; color:var(--muted); }
     .btn:disabled { opacity: .65; cursor: not-allowed; }
     .tag { display:inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; border:1px solid #2b3345; background: #0f141c; color: var(--muted); }
     .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -31,13 +31,11 @@
     .score.neutral { color: var(--warn); }
     .score.bad { color: var(--bad); }
     footer { padding: 24px; color: var(--muted); text-align:center; }
-    .pill { padding:4px 8px; border-radius:8px; border:1px dashed #2b3345; }
-    .muted { color: var(--muted); }
-    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
     .tiny { font-size: 11px; color:#8a95ad; }
     ul.news { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
     ul.news li { padding:8px; border:1px solid #1d2430; border-radius:10px; background:#0f141a; }
     ul.news a { color: var(--accent); text-decoration:none; }
+    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -56,65 +54,65 @@
           <div>
             <label>Provider</label>
             <select id="provider">
-              <option value="openai">OpenAI (Responses/Chat)</option>
-              <option value="anthropic">Anthropic (Claude Messages)</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
             </select>
           </div>
           <div>
             <label>Model</label>
             <div class="row">
               <select id="model"></select>
-              <button class="btn secondary" id="btnLoadModels" title="Detect available models from your API key">Detect Models</button>
+              <button class="btn secondary" id="btnLoadModels">Detect</button>
             </div>
-            <div class="tiny">Pick from the dropdown or click Detect Models after adding your API key.</div>
           </div>
         </div>
         <div>
-          <label>API Key (stored locally)</label>
-          <input id="apiKey" type="password" placeholder="sk-... or anthropic key" autocomplete="off" />
-          <div class="tiny">Your key is only used in your browser and saved to localStorage on this device.</div>
+          <label>API Key (local only)</label>
+          <input id="apiKey" type="password" autocomplete="off" placeholder="sk-..." />
         </div>
-        <div class="card" style="background:#0c1118; border-color:#223;">
-          <h2>News (auto-fetched)</h2>
+
+        <div class="card" style="background:#0c1118;">
+          <h2>Live Data + News</h2>
           <div class="body">
-            <div class="tiny">Headlines auto-fetch from trusted RSS sources (Reuters Markets, Reuters Business, CNBC Top, Investing.com Indices). Filter: last 4 hours, capped at 25 most recent. No keys needed.</div>
+            <div class="grid-3">
+              <div>
+                <label>NQ Spot <span id="nqLive" class="tiny muted"></span></label>
+                <input id="nq" placeholder="live →" />
+              </div>
+              <div>
+                <label>US10Y % <span id="tnxLive" class="tiny muted"></span></label>
+                <input id="tnx" placeholder="live →" />
+              </div>
+              <div>
+                <label>DXY <span id="dxyLive" class="tiny muted"></span></label>
+                <input id="dxy" placeholder="live →" />
+              </div>
+            </div>
             <div class="row">
-              <button class="btn" id="btnNewsRefresh">Refresh Headlines</button>
-              <button class="btn secondary" id="btnNewsAndBias">Refresh + Generate Bias</button>
+              <button class="btn" id="btnNewsRefresh">Refresh News</button>
+              <button class="btn ritual" id="ritual">Morning Ritual</button>
             </div>
             <ul class="news" id="newsList"></ul>
           </div>
         </div>
-        <div class="grid-3">
-          <div>
-            <label>NQ Spot <span id="nqLive" class="tiny muted"></span></label>
-            <input id="nq" placeholder="live auto-filled" />
-          </div>
-          <div>
-            <label>US10Y % <span id="tnxLive" class="tiny muted"></span></label>
-            <input id="tnx" placeholder="live auto-filled" />
-          </div>
-          <div>
-            <label>DXY <span id="dxyLive" class="tiny muted"></span></label>
-            <input id="dxy" placeholder="live auto-filled" />
-          </div>
+
+        <div>
+          <label>Headlines (auto)</label>
+          <textarea id="news" placeholder="Headlines appear here…"></textarea>
         </div>
         <div>
-          <label>Headlines / Notes (auto-filled)</label>
-          <textarea id="news" placeholder="Fetched headlines appear here."></textarea>
+          <label>Key Levels</label>
+          <textarea id="levels" placeholder="Gaps, VWAP, ON H/L…"></textarea>
         </div>
-        <div>
-          <label>Key Levels / Your Technicals</label>
-          <textarea id="levels" placeholder="Premarket H/L, prior day H/L, gaps, VWAP, ranges, etc."></textarea>
-        </div>
+
         <div class="row">
-          <button class="btn" id="run" title="Ctrl+Enter">Generate Bias Snapshot</button>
-          <button class="btn" id="ritual" style="background:linear-gradient(180deg,#9b59b6,#8e44ad);">⚡ Morning Ritual (News + Live + Bias)</button>
-          <button class="btn secondary" id="save">Save Keys & Defaults</button>
+          <button class="btn" id="run">Generate Bias Snapshot (Ctrl+Enter)</button>
+          <button class="btn secondary" id="save">Save Settings</button>
         </div>
-        <div class="status" id="status">Idle</div>
+        <div class="status" id="status">Idle — Hit Morning Ritual to crush it</div>
       </div>
     </section>
+
     <section class="card">
       <h2>Output</h2>
       <div class="body">
@@ -133,31 +131,33 @@
           <div id="rationale" class="out"></div>
         </div>
         <div>
-          <label>Actionable Checklist</label>
+          <label>Checklist</label>
           <div id="checklist" class="out"></div>
         </div>
         <div>
-          <label>Risk Flags</label>
+          <label>Risks</label>
           <div id="risks" class="out"></div>
         </div>
-        <div class="tiny">Disclaimer: Educational context only. Not financial advice.</div>
+        <div class="tiny">Last 100 snapshots saved locally • Not financial advice</div>
       </div>
     </section>
   </main>
   <footer>
-    Built for Ed by <span class="pill">BurtonCraft AI Systems</span>. Runs entirely in your browser. Bring-your-own API key.
+    Built for Ed by BurtonCraft AI • 100% in-browser • BYO-key
   </footer>
+
   <script>
     const els = {
       provider: document.getElementById('provider'),
       model: document.getElementById('model'),
       apiKey: document.getElementById('apiKey'),
-      nq: document.getElementById('nq'),
-      tnx: document.getElementById('tnx'),
-      dxy: document.getElementById('dxy'),
+      nq: document.getElementById('nq'), nqLive: document.getElementById('nqLive'),
+      tnx: document.getElementById('tnx'), tnxLive: document.getElementById('tnxLive'),
+      dxy: document.getElementById('dxy'), dxyLive: document.getElementById('dxyLive'),
       news: document.getElementById('news'),
       levels: document.getElementById('levels'),
       run: document.getElementById('run'),
+      ritual: document.getElementById('ritual'),
       save: document.getElementById('save'),
       status: document.getElementById('status'),
       bias: document.getElementById('bias'),
@@ -167,398 +167,248 @@
       risks: document.getElementById('risks'),
       newsList: document.getElementById('newsList'),
       btnLoadModels: document.getElementById('btnLoadModels'),
-      btnNewsRefresh: document.getElementById('btnNewsRefresh'),
-      btnNewsAndBias: document.getElementById('btnNewsAndBias'),
-      ritual: document.getElementById('ritual')
+      btnNewsRefresh: document.getElementById('btnNewsRefresh')
     };
-    function toast(msg){ els.status.textContent = msg; }
-    // ====== SNAPSHOT COUNTER & COST ======
-    function todayKey(){ const d = new Date(); return d.toISOString().slice(0,10); }
-    function loadSnapCount(){
-      try{ const data = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}'); els.snapCount = data[todayKey()]||0; }catch{ els.snapCount = 0; }
-      document.getElementById('snapCount').textContent = String(els.snapCount||0);
+
+    function toast(msg) { els.status.textContent = msg; }
+
+    // ====== COST & SNAPS ======
+    function today() { return new Date().toISOString().slice(0,10); }
+    function incSnap() {
+      const snaps = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
+      snaps[today()] = (snaps[today()]||0) + 1;
+      localStorage.setItem('biascopilot_snaps', JSON.stringify(snaps));
+      document.getElementById('snapCount').textContent = snaps[today()];
+      updateCost();
     }
-    function incSnap(){ 
-      const data = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}'); 
-      const k = todayKey(); 
-      data[k] = (data[k]||0)+1; 
-      localStorage.setItem('biascopilot_snaps', JSON.stringify(data)); 
-      loadSnapCount(); 
-      updateCostToday(); 
+    function updateCost() {
+      const cfg = { in_cpm:0.15, out_cpm:0.60, in_tok:4096, out_tok:800 };
+      const snaps = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}');
+      const cost = (snaps[today()]||0) * ((cfg.in_tok/1e6)*cfg.in_cpm + (cfg.out_tok/1e6)*cfg.out_cpm);
+      document.getElementById('costToday').textContent = '$'+cost.toFixed(2);
     }
-    function loadCostCfg(){
-      const saved = JSON.parse(localStorage.getItem('biascopilot_cost')||'{}');
-      return { in_cpm: Number(saved.in_cpm ?? 0.15), out_cpm: Number(saved.out_cpm ?? 0.60), in_tokens: Number(saved.in_tokens ?? 4096), out_tokens: Number(saved.out_tokens ?? 800) };
-    }
-    function perSnapshotCost(cfg){ return (cfg.in_tokens/1e6)*cfg.in_cpm + (cfg.out_tokens/1e6)*cfg.out_cpm; }
-    function updateCostToday(){ 
-      try{ 
-        const cfg = loadCostCfg(); 
-        const data = JSON.parse(localStorage.getItem('biascopilot_snaps')||'{}'); 
-        const n = data[todayKey()]||0; 
-        const est = n * perSnapshotCost(cfg); 
-        document.getElementById('costToday').textContent = `$${est.toFixed(2)}`; 
-      } catch{ 
-        document.getElementById('costToday').textContent='$0.00'; 
-      } 
-    }
-    // ====== DEFAULTS & SAVE ======
-    (function init(){
-      try{
-        const saved = JSON.parse(localStorage.getItem('biascopilot')||'{}');
-        for(const k in saved){ if(els[k] && typeof saved[k] === 'string') els[k].value = saved[k]; }
-      }catch{}
-      loadDefaultModels();
-      loadSnapCount();
-      updateCostToday();
+
+    // ====== SETTINGS ======
+    (function load() {
+      const saved = JSON.parse(localStorage.getItem('biascopilot')||'{}');
+      Object.keys(saved).forEach(k => els[k] && (els[k].value = saved[k]));
+      els.provider.value === 'anthropic' 
+        ? loadModels(['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus']) 
+        : loadModels(['gpt-4o-mini','gpt-4o','gpt-4-turbo']);
+      updateCost();
     })();
     els.save.addEventListener('click', () => {
-      const d = collect(); 
-      localStorage.setItem('biascopilot', JSON.stringify(d)); 
-      toast('Settings saved locally.');
+      const data = { provider: els.provider.value, model: els.model.value, apiKey: els.apiKey.value, levels: els.levels.value };
+      localStorage.setItem('biascopilot', JSON.stringify(data));
+      toast('Saved');
     });
-    function collect(){
-      return {
-        provider: els.provider.value,
-        model: els.model.value,
-        apiKey: els.apiKey.value,
-        nq: els.nq.value,
-        tnx: els.tnx.value,
-        dxy: els.dxy.value,
-        news: els.news.value,
-        levels: els.levels.value
-      };
-    }
+
     // ====== MODELS ======
-    function loadDefaultModels(){
-      const list = els.provider.value === 'openai' ? ['gpt-4o','gpt-4o-mini','gpt-4-turbo','gpt-3.5-turbo'] : ['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus'];
-      renderModelOptions(list);
-    }
-    function renderModelOptions(list){
+    function loadModels(list) {
       els.model.innerHTML = '';
-      const prefs = els.provider.value === 'openai' ? ['gpt-4o','gpt-4o-mini','gpt-4-turbo','gpt-3.5-turbo'] : ['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus'];
-      list.forEach(m => { 
-        const opt = document.createElement('option'); 
-        opt.value = m; 
-        opt.textContent = m; 
-        els.model.appendChild(opt); 
+      list.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = m;
+        els.model.appendChild(opt);
       });
-      for(const p of prefs){ 
-        const o = [...els.model.options].find(o => o.value === p); 
-        if(o){ els.model.value = p; return; } 
+      els.model.value = list[0];
+    }
+    els.btnLoadModels.addEventListener('click', async () => {
+      toast('Detecting models…');
+      try {
+        const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/models', {
+          headers: { Authorization: `Bearer ${els.apiKey.value}` }
+        });
+        if (!r.ok) throw 0;
+        const j = await r.json();
+        const models = [...new Set(j.data.map(x=>x.id).filter(n=>/^gpt-/.test(n)))].sort();
+        loadModels(models.length ? models : ['gpt-4o-mini','gpt-4o']);
+        toast('Models loaded');
+      } catch {
+        loadModels(['gpt-4o-mini','gpt-4o']);
+        toast('Using fallback models');
       }
-      if(els.model.options.length){ els.model.selectedIndex = 0; }
+    });
+    els.provider.addEventListener('change', () => loadModels(els.provider.value==='openai'?['gpt-4o-mini','gpt-4o']:['claude-3-5-sonnet','claude-3-opus']));
+
+    // ====== LIVE DATA ======
+    async function fetchLiveData() {
+      const symbols = ['%5ENDX', '%5ETNX', '%5EDXY'];
+      const urls = symbols.map(s => `https://thingproxy.freeboard.io/fetch/https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1m&range=1d`);
+      try {
+        const res = await Promise.all(urls.map(u => fetch(u).then(r=>r.json())));
+        const [nq, tnx, dxy] = res.map(x => x.chart.result[0].meta.regularMarketPrice);
+        els.nq.value = nq.toFixed(0);   els.nqLive.textContent = `(${nq})`;
+        els.tnx.value = tnx.toFixed(2); els.tnxLive.textContent = `(${tnx}%)`;
+        els.dxy.value = dxy.toFixed(2); els.dxyLive.textContent = `(${dxy})`;
+      } catch(e) { console.warn(e); }
     }
-    async function detectOpenAIModels(key){
-      const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/models', {
-        headers: { 'Authorization': `Bearer ${key}` }
-      });
-      if (!r.ok) throw new Error('OpenAI list models failed');
-      const j = await r.json();
-      const names = (j.data || []).map(x => x.id).filter(n => /^gpt-/.test(n));
-      return [...new Set(names)].sort();
-    }
-    async function detectAnthropicModels(){ return ['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus']; }
-    async function loadModels(){ 
-      const key = els.apiKey.value; 
-      toast('Loading models…'); 
-      try{ 
-        const list = els.provider.value === 'openai' ? await detectOpenAIModels(key) : await detectAnthropicModels(); 
-        renderModelOptions(list); 
-        toast('Models loaded'); 
-      } catch(e){ 
-        console.warn(e); 
-        loadDefaultModels(); 
-        toast('Using default model list'); 
-      } 
-    }
-    els.btnLoadModels.addEventListener('click', loadModels);
-    els.provider.addEventListener('change', loadDefaultModels);
-    // ====== PROMPT BUILDER ======
-    function buildPrompt(d){
-      const symbol = d.symbol || 'NQ';
-      const session = d.session || 'Evening session (7–9 PM ET)';
-      return (
-`You are a trading bias co-pilot for Nasdaq futures (or selected instrument).
-Task: Read the inputs and produce: (1) Bias (Bullish/Bearish/Neutral), (2) Confidence 0–100, (3) Rationale in 3–6 bullet points, (4) Actionable checklist (entries, invalidation, risk mgmt), (5) Risk flags (events, liquidity, structural risks).
-Context:
-- Instrument: ${symbol}
-- Session: ${session}
-- Manual Data: NQ=${d.nq || 'NA'}, US10Y=${d.tnx || 'NA'}, DXY=${d.dxy || 'NA'}
-- Headlines/Notes:
-${d.news || '(none)'}
-- Key Levels/Technicals:
-${d.levels || '(none)'}
-Rules:
-- If signals conflict, choose Neutral and explain.
-- Keep it concise, trader-ready.
-- Assume user trades 7–9 PM ET and uses gap/seasonal/prev-session levels.
-- Output JSON with keys: bias, confidence, rationale, checklist, risks.`
-      );
-    }
-    // ====== NEWS (AUTO) ======
-    const RSS_FEEDS = [
+
+    // ====== NEWS ======
+    const RSS = [
       'https://feeds.reuters.com/reuters/marketsNews',
       'https://feeds.reuters.com/reuters/businessNews',
       'https://www.cnbc.com/id/100003114/device/rss/rss.html',
       'https://www.investing.com/rss/news_285.rss'
     ];
-    async function fetchRSS(url){
-      const targets = [
-        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-        (u) => `https://cors.isomorphic-git.org/${u}`,
-        (u) => `https://thingproxy.freeboard.io/fetch/${u}`
+    async function fetchRSS(url) {
+      const proxies = [
+        u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+        u => `https://thingproxy.freeboard.io/fetch/${u}`
       ];
-      let lastErr = null;
-      for(const wrap of targets){
-        const proxied = wrap(url);
-        try{
-          const r = await fetch(proxied, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-          if(!r.ok) throw new Error(`RSS fetch ${r.status}`);
+      for (const p of proxies) {
+        try {
+          const r = await fetch(p(url));
+          if (!r.ok) continue;
           const xml = await r.text();
           const doc = new DOMParser().parseFromString(xml, 'application/xml');
-          const items = [...doc.querySelectorAll('item')].map(x => ({
-            title: x.querySelector('title')?.textContent?.trim() || '',
-            url: x.querySelector('link')?.textContent || '',
-            source: (new URL(url)).hostname,
-            publishedAt: x.querySelector('pubDate')?.textContent || ''
+          return [...doc.querySelectorAll('item')].map(i => ({
+            title: i.querySelector('title')?.textContent?.trim(),
+            url: i.querySelector('link')?.textContent,
+            pub: i.querySelector('pubDate')?.textContent
           }));
-          if(items.length) return items;
-        } catch(e){ lastErr = e; }
+        } catch {}
       }
-      throw lastErr || new Error('All proxies failed');
+      return [];
     }
-    function dedupe(items){ 
-      const seen = new Set(); 
-      return items.filter(it => { 
-        const k = it.title.toLowerCase(); 
-        if(seen.has(k)) return false; 
-        seen.add(k); 
-        return true; 
-      }); 
-    }
-    function toDateSafe(s){ 
-      const t = Date.parse(s || ''); 
-      return isNaN(t) ? new Date() : new Date(t); 
-    }
-    function isWithinHours(date, hours){ 
-      const cutoff = Date.now() - hours * 60 * 60 * 1000; 
-      return +date >= cutoff; 
-    }
-    function renderNews(items){
+    async function autoNews() {
+      toast('Fetching news + live data…');
+      const all = (await Promise.all(RSS.map(fetchRSS))).flat();
+      const recent = all
+        .filter(i => Date.now() - new Date(i.pub) < 4*60*60*1000)
+        .sort((a,b) => new Date(b.pub) - new Date(a.pub))
+        .slice(0,25);
       els.newsList.innerHTML = '';
-      items.forEach(it => {
+      recent.forEach(i => {
         const li = document.createElement('li');
-        const a = document.createElement('a'); 
-        a.href = it.url; 
-        a.target = '_blank'; 
-        a.rel = 'noopener'; 
-        a.textContent = it.title;
-        const dt = toDateSafe(it.publishedAt); 
-        const when = dt.toUTCString();
-        const meta = document.createElement('div'); 
-        meta.className = 'tiny'; 
-        meta.textContent = `${it.source} • ${when}`;
-        li.appendChild(a); 
-        li.appendChild(meta); 
-        els.newsList.appendChild(li);
+        const a = document.createElement('a'); a.href=i.url; a.target='_blank'; a.textContent=i.title;
+        li.appendChild(a); els.newsList.appendChild(li);
       });
-      return items;
-    }
-    async function autoFetchHeadlines(){
-      try{
-        const HOURS = 4; 
-        const LIMIT = 25; 
-        toast('Fetching headlines…');
-        const batches = await Promise.allSettled(RSS_FEEDS.map(fetchRSS));
-        const all = batches.flatMap(b => b.status === 'fulfilled' ? b.value : []);
-        if(!all.length){ 
-          renderNews([{ title: 'Could not fetch headlines (CORS).', url: '#', source: 'local', publishedAt: new Date().toUTCString() }]); 
-          toast('RSS blocked by network/CORS.'); 
-          return; 
-        }
-        const deduped = dedupe(all)
-          .map(it => ({ ...it, _dt: toDateSafe(it.publishedAt) }))
-          .filter(it => isWithinHours(it._dt, HOURS))
-          .sort((a, b) => b._dt - a._dt)
-          .slice(0, LIMIT);
-        renderNews(deduped);
-        els.news.value = deduped.map(it => `- ${it.title} (${it.source})`).join('\n');
-        toast(`Loaded ${deduped.length} headlines from last ${HOURS}h.`);
-      } catch(e){ 
-        console.error(e); 
-        renderNews([{ title: 'Could not fetch headlines (CORS).', url: '#', source: 'local', publishedAt: new Date().toUTCString() }]); 
-        toast('Could not fetch headlines (network/CORS).'); 
-      }
-    }
-    async function fetchLiveData(){
-      const symbols = ['%5ENDX', '%5ETNX', '%5EDXY'];
-      const urls = symbols.map(s => `https://thingproxy.freeboard.io/fetch/https://query1.finance.yahoo.com/v8/finance/chart/${s}?interval=1m&range=1d`);
-      try{
-        const res = await Promise.all(urls.map(u => fetch(u).then(r => r.json())));
-        const nq = res[0].chart.result[0].meta.regularMarketPrice.toFixed(0);
-        const tnx = res[1].chart.result[0].meta.regularMarketPrice.toFixed(2);
-        const dxy = res[2].chart.result[0].meta.regularMarketPrice.toFixed(2);
-        els.nq.value = nq; 
-        document.getElementById('nqLive').textContent = `(${nq})`;
-        els.tnx.value = tnx; 
-        document.getElementById('tnxLive').textContent = `(${tnx}%)`;
-        els.dxy.value = dxy; 
-        document.getElementById('dxyLive').textContent = `(${dxy})`;
-      } catch(e){ 
-        console.warn('live data failed', e); 
-        toast('Live data fetch failed. Enter manually.'); 
-      }
-    }
-    document.addEventListener('DOMContentLoaded', async () => { 
-      await autoFetchHeadlines(); 
-      await fetchLiveData(); 
-    });
-    els.btnNewsRefresh.addEventListener('click', async () => { 
-      await autoFetchHeadlines(); 
-      await fetchLiveData(); 
-    });
-    els.btnNewsAndBias.addEventListener('click', async () => { 
-      await autoFetchHeadlines(); 
-      await fetchLiveData(); 
-      els.run.click(); 
-    });
-    els.ritual.addEventListener('click', async () => {
-      await autoFetchHeadlines();
+      els.news.value = recent.map(i=>`- ${i.title}`).join('\n');
       await fetchLiveData();
-      els.run.click();
-    });
-    // ====== OPENAI CALL (with retry/backoff and clearer errors) ======
-    async function fetchWithRetry(url, options, tries = 3, baseDelayMs = 800) {
-      let res;
-      for (let i = 0; i < tries; i++) {
-        res = await fetch(url, options);
-        if (res.status !== 429) return res;
-        await new Promise(r => setTimeout(r, baseDelayMs * (i + 1)));
-      }
-      return res;
+      toast(`Ready — ${recent.length} headlines loaded`);
     }
-    async function callOpenAI(model, key, prompt){
-      {
-        const r = await fetchWithRetry(
-          'https://bias-proxy.edgar-guppy.workers.dev/responses',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${key}`
-            },
-            body: JSON.stringify({
-              model,
-              input: [{ role: 'user', content: prompt }],
-              temperature: 0.2,
-              max_output_tokens: 700,
-              response_format: { type: 'json_object' }
-            })
-          }
-        );
-        if (r.ok) {
-          const j = await r.json();
-          return j.output_text || (j.output?.[0]?.content?.[0]?.text) || '';
-        } else if (r.status !== 404) {
-          const body = await r.text();
-          throw new Error(`OpenAI Responses ${r.status}: ${body}`);
-        }
-      }
-      const rc = await fetchWithRetry(
-        'https://bias-proxy.edgar-guppy.workers.dev/chat/completions',
-        {
+    els.btnNewsRefresh.addEventListener('click', autoNews);
+    els.ritual.addEventListener('click', async () => { await autoNews(); els.run.click(); });
+
+    // ====== FIXED OPENAI CALL (NO MORE response_format ERRORS) ======
+    async function callOpenAI(prompt) {
+      const key = els.apiKey.value;
+      const model = els.model.value;
+
+      // Try Responses API first (no response_format!)
+      try {
+        const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/responses', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${key}`
-          },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
           body: JSON.stringify({
             model,
-            messages: [{ role: 'user', content: prompt }],
+            input: [{ role: 'user', content: prompt }],
             temperature: 0.2,
-            response_format: { type: 'json_object' }
+            max_output_tokens: 700
           })
+        });
+        if (r.ok) {
+          const j = await r.json();
+          return j.output?.[0]?.content?.[0]?.text || j.output_text || '';
         }
-      );
-      if (!rc.ok) {
-        const body = await rc.text();
-        throw new Error(`OpenAI Chat ${rc.status}: ${body}`);
-      }
-      const jc = await rc.json();
-      return (jc.choices?.[0]?.message?.content) || '';
+      } catch(e) { console.log('Responses failed, falling back…'); }
+
+      // Fallback to Chat Completions (supports json_object)
+      const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': ' заключается/application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.2,
+          response_format: { type: 'json_object' }
+        })
+      });
+      if (!r.ok) throw new Error(`Chat API error: ${await r.text()}`);
+      const j = await r.json();
+      return j.choices[0].message.content;
     }
-    async function callAnthropic(model, key, prompt){
+
+    async function callAnthropic(prompt) {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01'
+          'x-api-key': els.apiKey.value,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model,
+          model: els.model.value,
           max_tokens: 800,
           temperature: 0.2,
           messages: [{ role: 'user', content: prompt }]
         })
       });
-      if (!r.ok) {
-        const body = await r.text();
-        throw new Error(`Anthropic ${r.status}: ${body}`);
-      }
+      if (!r.ok) throw new Error(await r.text());
       const j = await r.json();
-      const parts = j.content?.filter?.(p => p.type === 'text').map(p => p.text).join(' ') || '';
-      return parts;
+      return j.content[0].text;
     }
-    function saveSnapshot(data){
-      const snaps = JSON.parse(localStorage.getItem('biascopilot_history')||'[]');
-      snaps.push({ ts: new Date().toISOString(), ...data });
-      if(snaps.length > 100) snaps.shift();
-      localStorage.setItem('biascopilot_history', JSON.stringify(snaps));
+
+    function buildPrompt() {
+      return `You are a trading bias co-pilot for NQ futures (7-9 PM ET).
+Output strict JSON only:
+{
+  "bias": "Bullish|Bearish|Neutral",
+  "confidence": 0-100,
+  "rationale": ["bullet 1", "bullet 2", ...],
+  "checklist": ["entry", "invalidation", ...],
+  "risks": ["risk flag 1", ...]
+}
+Data:
+NQ=${els.nq.value||'NA'}  US10Y=${els.tnx.value||'NA'}%  DXY=${els.dxy.value||'NA'}
+News:
+${els.news.value||'(none)'}
+Levels:
+${els.levels.value||'(none)'}
+Be concise. Trader-ready.`;
     }
-    function renderFromJSON(json){
-      try{
-        const data = JSON.parse(json);
-        const bias = String(data.bias || 'Neutral');
-        const conf = Number(data.confidence || 0);
-        els.bias.textContent = bias;
-        els.conf.textContent = isFinite(conf) ? `${conf}%` : '—';
-        els.bias.className = 'score ' + (bias.toLowerCase().includes('bull') ? 'good' : bias.toLowerCase().includes('bear') ? 'bad' : 'neutral');
-        els.conf.className = 'score ' + (conf >= 67 ? 'good' : conf >= 34 ? 'neutral' : 'bad');
-        els.rationale.textContent = Array.isArray(data.rationale) ? data.rationale.map(x => `• ${x}`).join('\n') : (data.rationale || '');
-        els.checklist.textContent = Array.isArray(data.checklist) ? data.checklist.map(x => `☐ ${x}`).join('\n') : (data.checklist || '');
-        els.risks.textContent = Array.isArray(data.risks) ? data.risks.map(x => `! ${x}`).join('\n') : (data.risks || '');
-        saveSnapshot({ bias: els.bias.textContent, conf: els.conf.textContent, rationale: els.rationale.textContent });
-      } catch(e){
-        els.rationale.textContent = json;
-        els.checklist.textContent = '—';
-        els.risks.textContent = '—';
-      }
+
+    function saveHistory(data) {
+      const h = JSON.parse(localStorage.getItem('biascopilot_history')||'[]');
+      h.push({ ts: new Date().toISOString(), ...data });
+      if (h.length > 100) h.shift();
+      localStorage.setItem('biascopilot_history', JSON.stringify(h));
     }
+
+    function render(json) {
+      let d;
+      try { d = JSON.parse(json); } catch { els.rationale.textContent = json; return; }
+      els.bias.textContent = d.bias || 'Neutral';
+      els.conf.textContent = (d.confidence||0)+'%';
+      els.bias.className = 'score ' + (d.bias.toLowerCase().includes('bull')?'good':d.bias.toLowerCase().includes('bear')?'bad':'neutral');
+      els.conf.className = 'score ' + (d.confidence>=67?'good':d.confidence>=34?'neutral':'bad');
+      els.rationale.textContent = (d.rationale||[]).map(x=>'• '+x).join('\n');
+      els.checklist.textContent = (d.checklist||[]).map(x=>'Check '+x).join('\n');
+      els.risks.textContent = (d.risks||[]).map(x=>'Warning '+x).join('\n');
+      saveHistory({ bias: d.bias, conf: d.confidence });
+    }
+
     els.run.addEventListener('click', async () => {
-      const d = collect();
-      if(!d.apiKey){ return toast('Add your API key first.'); }
-      toast('Calling model…');
+      if (!els.apiKey.value) return toast('Add API key first');
       els.run.disabled = true;
+      toast('Calling model…');
       try {
-        const prompt = buildPrompt(d);
-        let out = '';
-        if(d.provider === 'openai') out = await callOpenAI(d.model, d.apiKey, prompt);
-        else out = await callAnthropic(d.model, d.apiKey, prompt);
-        renderFromJSON(out);
+        const prompt = buildPrompt();
+        const out = els.provider.value==='openai' ? await callOpenAI(prompt) : await callAnthropic(prompt);
+        render(out);
         incSnap();
-        toast('Done');
-      } catch (err){
-        console.error(err);
-        toast('Error: ' + err.message + '. Check model name, key, or CORS.');
+        toast('Bias ready');
+      } catch(e) {
+        toast('Error: '+e.message);
+        console.error(e);
       } finally {
         els.run.disabled = false;
       }
     });
-    document.addEventListener('keydown', e => { 
-      if(e.ctrlKey && e.key === 'Enter') els.run.click(); 
-    });
+
+    document.addEventListener('keydown', e => { if(e.ctrlKey && e.key==='Enter') els.run.click(); });
+    document.addEventListener('DOMContentLoaded', async () => { await autoNews(); });
   </script>
 </body>
 </html>
