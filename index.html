@@ -234,15 +234,14 @@
       if(els.model.options.length){ els.model.selectedIndex = 0; }
     }
     async function detectOpenAIModels(key){
-  const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/models', {
-    headers: { 'Authorization': `Bearer ${key}` } // not used by the Worker, but fine
-  });
-  if (!r.ok) throw new Error('OpenAI list models failed');
-  const j = await r.json();
-  const names = (j.data || []).map(x => x.id).filter(n => /^gpt-/.test(n));
-  return [...new Set(names)].sort();
-}
-
+      const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/models', {
+        headers: { 'Authorization': `Bearer ${key}` }
+      });
+      if (!r.ok) throw new Error('OpenAI list models failed');
+      const j = await r.json();
+      const names = (j.data || []).map(x => x.id).filter(n => /^gpt-/.test(n));
+      return [...new Set(names)].sort();
+    }
     async function detectAnthropicModels(){ return ['claude-3-5-sonnet','claude-3-5-haiku','claude-3-opus']; }
     async function loadModels(){ const key=els.apiKey.value; toast('Loading models…'); try{ const list = els.provider.value==='openai' ? await detectOpenAIModels(key) : await detectAnthropicModels(); renderModelOptions(list); toast('Models loaded'); }catch(e){ console.warn(e); loadDefaultModels(); toast('Using default model list'); } }
     els.btnLoadModels.addEventListener('click', loadModels);
@@ -250,14 +249,16 @@
 
     // ====== PROMPT BUILDER ======
     function buildPrompt(d){
+      const symbol  = d.symbol  || 'NQ';
+      const session = d.session || 'Evening session (7–9 PM ET)';
       return (
 `You are a trading bias co-pilot for Nasdaq futures (or selected instrument).
 
 Task: Read the inputs and produce: (1) Bias (Bullish/Bearish/Neutral), (2) Confidence 0–100, (3) Rationale in 3–6 bullet points, (4) Actionable checklist (entries, invalidation, risk mgmt), (5) Risk flags (events, liquidity, structural risks).
 
 Context:
-- Instrument: ${d.symbol}
-- Session: ${d.session}
+- Instrument: ${symbol}
+- Session: ${session}
 - Manual Data: NQ=${d.nq || 'NA'}, US10Y=${d.tnx || 'NA'}, DXY=${d.dxy || 'NA'}
 - Headlines/Notes:
 ${d.news || '(none)'}
@@ -332,7 +333,6 @@ Rules:
         renderNews(deduped);
         els.news.value = deduped.map(it => `- ${it.title} (${it.source})`).join('\n');
         toast(`Loaded ${deduped.length} headlines from last ${HOURS}h.`);
-
       }catch(e){ console.error(e); renderNews([{ title:'Could not fetch headlines (CORS).', url:'#', source:'local', publishedAt:new Date().toUTCString() }]); toast('Could not fetch headlines (network/CORS).'); }
     }
 
@@ -340,25 +340,93 @@ Rules:
     if(els.btnNewsRefresh) els.btnNewsRefresh.addEventListener('click', autoFetchHeadlines);
     if(els.btnNewsAndBias) els.btnNewsAndBias.addEventListener('click', async ()=>{ await autoFetchHeadlines(); els.run.click(); });
 
-    // ====== RUN MODEL ======
-    async function callOpenAI(model, key, prompt){
-      try{
-        const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/responses', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${key}` }, body: JSON.stringify({ model, input:[{role:'user', content: prompt}], temperature:0.2, max_output_tokens:700, response_format:{ type:'json_object' } }) });
-        if(!r.ok) throw new Error(`OpenAI ${r.status}`);
-        const j = await r.json();
-        const text = j.output_text || (j.output?.[0]?.content?.[0]?.text) || '';
-        return text;
-      }catch(e){
-        const r = await fetch('https://bias-proxy.edgar-guppy.workers.dev/chat/completions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${key}` }, body: JSON.stringify({ model, messages:[{role:'user', content: prompt}], temperature:0.2, response_format:{ type:'json_object' } }) });
-        if(!r.ok) throw new Error(`OpenAI Chat ${r.status}`);
-        const j = await r.json();
-        return (j.choices?.[0]?.message?.content)||'';
+    // ====== OPENAI CALL (with retry/backoff and clearer errors) ======
+    async function fetchWithRetry(url, options, tries = 3, baseDelayMs = 800) {
+      let res;
+      for (let i = 0; i < tries; i++) {
+        res = await fetch(url, options);
+        if (res.status !== 429) return res;  // back off only on rate-limit
+        await new Promise(r => setTimeout(r, baseDelayMs * (i + 1)));
       }
+      return res;
+    }
+
+    async function callOpenAI(model, key, prompt){
+      // Try Responses API first
+      {
+        const r = await fetchWithRetry(
+          'https://bias-proxy.edgar-guppy.workers.dev/responses',
+          {
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              'Authorization':`Bearer ${key}`
+            },
+            body: JSON.stringify({
+              model,
+              input:[{ role:'user', content: prompt }],
+              temperature: 0.2,
+              max_output_tokens: 700,
+              response_format: { type:'json_object' }
+            })
+          }
+        );
+
+        if (r.ok) {
+          const j = await r.json();
+          return j.output_text || (j.output?.[0]?.content?.[0]?.text) || '';
+        } else if (r.status !== 404) {
+          const body = await r.text();
+          throw new Error(`OpenAI Responses ${r.status}: ${body}`);
+        }
+      }
+
+      // Fallback to Chat Completions
+      const rc = await fetchWithRetry(
+        'https://bias-proxy.edgar-guppy.workers.dev/chat/completions',
+        {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'Authorization':`Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model,
+            messages:[{ role:'user', content: prompt }],
+            temperature: 0.2,
+            response_format: { type:'json_object' }
+          })
+        }
+      );
+
+      if (!rc.ok) {
+        const body = await rc.text();
+        throw new Error(`OpenAI Chat ${rc.status}: ${body}`);
+      }
+
+      const jc = await rc.json();
+      return (jc.choices?.[0]?.message?.content) || '';
     }
 
     async function callAnthropic(model, key, prompt){
-      const r = await fetch('https://api.anthropic.com/v1/messages', { method:'POST', headers:{ 'Content-Type':'application/json','x-api-key': key,'anthropic-version':'2023-06-01' }, body: JSON.stringify({ model, max_tokens:800, temperature:0.2, messages:[{role:'user', content: prompt}] }) });
-      if(!r.ok) throw new Error(`Anthropic ${r.status}`);
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key': key,
+          'anthropic-version':'2023-06-01'
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens:800,
+          temperature:0.2,
+          messages:[{role:'user', content: prompt}]
+        })
+      });
+      if(!r.ok){
+        const body = await r.text();
+        throw new Error(`Anthropic ${r.status}: ${body}`);
+      }
       const j = await r.json();
       const parts = j.content?.filter?.(p => p.type === 'text').map(p => p.text).join(' ') || '';
       return parts;
@@ -373,9 +441,9 @@ Rules:
         els.conf.textContent = isFinite(conf) ? `${conf}%` : '—';
         els.bias.className = 'score ' + (bias.toLowerCase().includes('bull') ? 'good' : bias.toLowerCase().includes('bear') ? 'bad' : 'neutral');
         els.conf.className = 'score ' + (conf>=67 ? 'good' : conf>=34 ? 'neutral' : 'bad');
-        els.rationale.textContent = Array.isArray(data.rationale)? data.rationale.map(x=>`• ${x}`).join('') : (data.rationale||'');
-        els.checklist.textContent = Array.isArray(data.checklist)? data.checklist.map(x=>`☐ ${x}`).join('') : (data.checklist||'');
-        els.risks.textContent = Array.isArray(data.risks)? data.risks.map(x=>`! ${x}`).join('') : (data.risks||'');
+        els.rationale.textContent = Array.isArray(data.rationale)? data.rationale.map(x=>`• ${x}`).join('\n') : (data.rationale||'');
+        els.checklist.textContent = Array.isArray(data.checklist)? data.checklist.map(x=>`☐ ${x}`).join('\n') : (data.checklist||'');
+        els.risks.textContent = Array.isArray(data.risks)? data.risks.map(x=>`! ${x}`).join('\n') : (data.risks||'');
       } catch(e){
         els.rationale.textContent = json; // fallback raw
         els.checklist.textContent = '—';
@@ -406,9 +474,3 @@ Rules:
   </script>
 </body>
 </html>
-
-  
-
-
-
-
